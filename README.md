@@ -3,7 +3,9 @@
 ## 模型训练:
 
 1、load_data_2025.py # 加载CPSC2025的训练数据
+
 2、train_evaluate_2017.py # 在PhysioNet2017 数据集上进行训练，得到预训练模型
+
 3、finetune.py # 模型微调得到最后模型权重
 
 ## 测试集预测
