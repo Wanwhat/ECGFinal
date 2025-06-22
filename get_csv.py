@@ -5,7 +5,6 @@ import torch
 from tqdm import tqdm
 
 from model.muti_attention_model import model
-from seresnet import se_resnet34
 from utils import set_seed, resample, baseline_remove, min_max_normalize
 
 if __name__ == '__main__':
@@ -50,8 +49,3 @@ if __name__ == '__main__':
 
     csv_path = './results.csv'
     df.to_csv(csv_path, index=False)
-
-    """
-    AF    5766
-    N     4234
-    """
