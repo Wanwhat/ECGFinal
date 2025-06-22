@@ -1,0 +1,14 @@
+/.idea
+/__pycache__
+/data_unlabeled
+/SHDB-AF
+/npy_files_2025_relabeled
+/npy_files_2025_relabeled_test
+/processed
+/combine_files.py
+/finetune_labeled.py
+/get_csv_fintune.py
+/load_labeled_file_0621.py
+/result_test.csv
+/results.csv
+
