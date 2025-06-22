@@ -70,6 +70,45 @@ def evaluate(model, val_loader, criterion, device):
     return val_loss, val_acc
 
 
+def grid_search(train_loader, val_loader, device, parameter_grid):
+    best_val_loss = float('inf')
+    best_params = None
+
+    for lr in parameter_grid['lr']:
+        for batch_size in parameter_grid['batch_size']:
+            for optimizer_name in parameter_grid['optimizer']:
+                model = load_pretrained_model(pretrained_model_path, num_classes=2, device=device)
+                train_loader = torch.utils.data.DataLoader(train_data, batch_size=batch_size, shuffle=True)
+
+                if optimizer_name == 'Adam':
+                    optimizer = torch.optim.Adam(model.parameters(), lr=lr)
+                elif optimizer_name == 'SGD':
+                    optimizer = torch.optim.SGD(model.parameters(), lr=lr, momentum=0.9)
+                else:
+                    raise ValueError(f"Unsupported optimizer: {optimizer_name}")
+
+                class_weights = get_class_weights(train_data).to(device)
+                criterion = nn.CrossEntropyLoss(weight=class_weights).to(device)
+
+                early_stopping = EarlyStopping(patience=20, verbose=True, delta=0.0001,
+                                               path=finetuned_model_path)
+
+                for epoch in range(1000):
+                    train_loss, train_acc = train(model, train_loader, criterion, optimizer, device)
+                    val_loss, val_acc = evaluate(model, val_loader, criterion, device)
+                    print(f'Epoch {epoch + 1} -- '
+                          f'Train Loss: {train_loss:.4f}, Train Acc: {train_acc:.2f} | Val Loss: {val_loss:.4f}, Val Acc: {val_acc:.2f}')
+
+                    early_stopping(val_loss, model)
+                    if early_stopping.early_stop:
+                        break
+
+                if val_loss < best_val_loss:
+                    best_val_loss = val_loss
+                    best_params = {'lr': lr, 'batch_size': batch_size, 'optimizer': optimizer_name}
+    return best_params
+
+
 if __name__ == '__main__':
     set_seed(42)
 
@@ -77,7 +116,6 @@ if __name__ == '__main__':
     finetuned_model_path = './checkpoints/best-model.pt'
 
     device = 'cuda' if torch.cuda.is_available() else 'cpu'
-    model = load_pretrained_model(pretrained_model_path, num_classes=2, device=device)
 
     train_path = './data_labeled/'
     train_dataset = ECGDataset(train_path)
@@ -85,25 +123,15 @@ if __name__ == '__main__':
     train_data, val_data = random_split(train_dataset, [m - int(0.2 * m), int(0.2 * m)],
                                         generator=torch.Generator().manual_seed(42))
 
+    parameter_grid = {
+        'lr': [0.0001, 0.001, 0.01],
+        'batch_size': [16, 32, 64],
+        'optimizer': ['Adam', 'SGD']
+    }
+
     batch_size = 32
     train_loader = torch.utils.data.DataLoader(train_data, batch_size=batch_size, shuffle=True)
     val_loader = torch.utils.data.DataLoader(val_data, batch_size=batch_size, shuffle=False)
 
-    class_weights = get_class_weights(train_data).to(device)
-
-    criterion = nn.CrossEntropyLoss(weight=class_weights).to(device)
-    optimizer = torch.optim.Adam(model.parameters(), lr=0.0001)
-
-    early_stopping = EarlyStopping(patience=20, verbose=True, delta=0.0001,
-                                   path=finetuned_model_path)
-
-    train_accs, val_accs, train_losses, val_losses = [], [], [], []
-    for epoch in range(1000):
-        train_loss, train_acc = train(model, train_loader, criterion, optimizer, device)
-        val_loss, val_acc = evaluate(model, val_loader, criterion, device)
-        print(f'Epoch {epoch + 1} -- '
-              f'Train Loss: {train_loss:.4f}, Train Acc: {train_acc:.2f} | Val Loss: {val_loss:.4f}, Val Acc: {val_acc:.2f}')
-
-        early_stopping(val_loss, model)
-        if early_stopping.early_stop:
-            break
+    best_params = grid_search(train_loader, val_loader, device, parameter_grid)
+    print(f"Best parameters found: {best_params}")
