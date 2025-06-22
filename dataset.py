@@ -30,15 +30,3 @@ class ECGDataset(Dataset):
 
     def __len__(self):
         return len(self.data)
-
-
-if __name__ == '__main__':
-    train_path = './npy_files_2017'
-
-    train_set = ECGDataset(train_path)
-    train_loader = DataLoader(train_set, batch_size=16, shuffle=True)
-
-    data, label = next(iter(train_loader))
-
-    print(data.shape)
-    print(label)
